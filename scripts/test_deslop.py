@@ -94,7 +94,25 @@ def check_quotes():
         failed += (not good)
         print(f"{name:<16} 期望 {want:<4} 实际 {got:<6} {'✅' if good else '❌'}")
     print(f"引号小计 {ok}/{ok + failed}")
-    return failed
+    return failed, ok + failed
+
+
+def check_types():
+    """规则名映射自检：JS 产出的 type 必须都在 TYPE_CN 里登记。
+
+    这正是 repeat / truncation / placeholder 那批键失效却没人发现的缺口。
+    """
+    print("\n规则名映射（deslop_bridge.TYPE_CN vs JS 源码）")
+    print("-" * 62)
+    missing, stale, seen = deslop_bridge.type_drift()
+    ok = not missing and not stale
+    print(f"JS 产出 {len(seen)} 类 · 未登记 {len(missing)} · 死键 {len(stale)}  "
+          f"{'✅' if ok else '❌'}")
+    for t in missing:
+        print(f"    └ 未登记：{t}（输出会掉回英文 type）")
+    for t in stale:
+        print(f"    └ 死键：{t}（JS 已不产出，多为改名残留）")
+    return (0 if ok else 1), 1
 
 
 def main():
@@ -126,10 +144,12 @@ def main():
                 print(f"       · {f['item']} {f['detail'][:60]}")
     print("-" * 62)
     print(f"护栏用例通过 {passed} / {passed + failed}")
-    quote_failed = check_quotes()
-    total_failed = failed + quote_failed
+    quote_failed, quote_total = check_quotes()
+    type_failed, type_total = check_types()
+    total_failed = failed + quote_failed + type_failed
+    total = passed + failed + quote_total + type_total
     print("=" * 62)
-    print(f"总通过 {passed + 4 - quote_failed} / {passed + 4 + total_failed}")
+    print(f"总通过 {total - total_failed} / {total}")
     return 0 if total_failed == 0 else 1
 
 
